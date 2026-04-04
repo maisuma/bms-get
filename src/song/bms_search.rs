@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use log::debug;
-use reqwest::Client;
-use tokio::time::{Duration, sleep};
+
+use crate::client::RateLimitedClient;
 
 use super::{BmsFileType, BmsProvider, BmsUrl};
 
@@ -36,17 +35,15 @@ impl BmsProvider for BmsSearchProvider {
         "BMS SEARCH API"
     }
 
-    async fn find_urls(&self, client: &Client, md5: &str) -> Result<BmsUrl> {
+    async fn find_urls(&self, client: &RateLimitedClient, md5: &str) -> Result<BmsUrl> {
         let api_url = format!("https://api.bmssearch.net/v1/patterns/{}", md5);
-        let response = client.get(&api_url).send().await?;
+        let response = client.get(&api_url).await.send().await?;
 
         let pattern: BmsPattern = response.json().await.context("Parsing failed")?;
         let id = pattern.bms.id.context("BMS ID not found")?;
 
-        sleep(Duration::from_secs(5)).await;
-
         let api_url = format!("https://api.bmssearch.net/v1/bmses/{}", id);
-        let response = client.get(&api_url).send().await?;
+        let response = client.get(&api_url).await.send().await?;
 
         let bms: BmsData = response.json().await.context("Parsing failed")?;
         let urls: Vec<String> = bms

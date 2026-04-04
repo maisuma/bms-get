@@ -1,9 +1,8 @@
-use std::time::Duration;
-
 use anyhow::{Context, Result};
-use reqwest::{Client, Url};
+use reqwest::{Url};
 use scraper::{Html, Selector};
-use tokio::time::sleep;
+
+use crate::client::RateLimitedClient;
 
 #[derive(serde::Deserialize)]
 struct Header {
@@ -30,8 +29,8 @@ pub struct Table {
     pub bms_data: Vec<BmsData>,
 }
 
-pub async fn parse_table(client: &Client, table_url: &str) -> Result<Table> {
-    let response = client.get(table_url).send().await?;
+pub async fn parse_table(client: &RateLimitedClient, table_url: &str) -> Result<Table> {
+    let response = client.get(table_url).await.send().await?;
     let text = response.text().await?;
 
     let document = Html::parse_document(&text);
@@ -44,16 +43,15 @@ pub async fn parse_table(client: &Client, table_url: &str) -> Result<Table> {
         .context("bmstable not found")?;
     let header_url = Url::parse(table_url)?.join(header_path)?;
 
-    sleep(Duration::from_secs(2)).await;
-    let response = client.get(header_url.clone()).send().await?;
+    let response = client.get(header_url.clone()).await.send().await?;
     let header: Header = response.json().await?;
 
     let name = header.name;
     let symbol = header.symbol;
 
     let data_url = header_url.join(&header.data_url)?;
-    sleep(Duration::from_secs(2)).await;
-    let response = client.get(data_url).send().await?;
+    
+    let response = client.get(data_url).await.send().await?;
     let bms_data: Vec<BmsData> = response.json().await?;
 
     Ok(Table {

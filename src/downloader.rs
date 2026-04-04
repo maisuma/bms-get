@@ -1,16 +1,18 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures_util::StreamExt;
 use log::debug;
 use regex::Regex;
-use reqwest::{header, Client};
+use reqwest::{header};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 use std::sync::OnceLock;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
+use crate::client::RateLimitedClient;
+
 pub async fn download(
-    client: &Client,
+    client: &RateLimitedClient,
     url: &str,
     output_dir: &Path,
     on_progress: Box<dyn Fn(u64, u64) + Send + Sync>,
@@ -19,6 +21,7 @@ pub async fn download(
 
     let response = client
         .get(url)
+        .await
         .send()
         .await?
         .error_for_status()?;
@@ -32,7 +35,7 @@ pub async fn download(
 
     let filename = filename
         .or_else(|| get_filename_from_url(url))
-        .unwrap_or_else(|| "downloaded_file".to_string());
+        .context("Failed to get filename")?;
 
     debug!("[Downloader] ファイル名: {}", filename);
 

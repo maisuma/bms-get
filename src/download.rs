@@ -1,12 +1,10 @@
 use anyhow::{Result, anyhow};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{error, info};
-use reqwest::Client;
 use std::collections::{HashSet, VecDeque};
 use std::path::Path;
-use std::time::Duration;
-use tokio::time::sleep;
 
+use crate::client::RateLimitedClient;
 use crate::{downloader, extract};
 use crate::parser::{self, ParseResult};
 use crate::song::{
@@ -14,11 +12,11 @@ use crate::song::{
 };
 use crate::table::BmsData;
 
-pub async fn download_md5(client: &Client, md5: &str, output_dir: &Path) -> Result<()> {
+pub async fn download_md5(client: &RateLimitedClient, md5: &str, output_dir: &Path) -> Result<()> {
     try_download(client, md5, output_dir, BmsUrl::default()).await
 }
 
-pub async fn download_event_entry(client: &Client, entry: &crate::event::EventEntry, output_dir: &Path) -> Result<()> {
+pub async fn download_event_entry(client: &RateLimitedClient, entry: &crate::event::EventEntry, output_dir: &Path) -> Result<()> {
     let mut attempted = HashSet::new();
     match download_and_extract(client, &entry.urls, &mut attempted, output_dir).await {
         Ok(true) => Ok(()),
@@ -27,7 +25,7 @@ pub async fn download_event_entry(client: &Client, entry: &crate::event::EventEn
     }
 }
 
-pub async fn download_table_entry(client: &Client, bms: &BmsData, output_dir: &Path) -> Result<()> {
+pub async fn download_table_entry(client: &RateLimitedClient, bms: &BmsData, output_dir: &Path) -> Result<()> {
     let seed = BmsUrl {
         main_urls: bms.main_url.clone().map_or(vec![], |u| vec![u]),
         diff_urls: bms.diff_url.clone().map_or(vec![], |u| vec![u]),
@@ -41,7 +39,7 @@ pub async fn download_table_entry(client: &Client, bms: &BmsData, output_dir: &P
     try_download(client, &bms.md5, output_dir, seed).await
 }
 
-async fn try_download(client: &Client, md5: &str, output_dir: &Path, seed: BmsUrl) -> Result<()> {
+async fn try_download(client: &RateLimitedClient, md5: &str, output_dir: &Path, seed: BmsUrl) -> Result<()> {
     let mut main_done = false;
     let mut diff_done = false;
     let mut target_type = seed.target_type;
@@ -144,7 +142,7 @@ fn merge_target_type(current: BmsFileType, found: BmsFileType) -> BmsFileType {
 }
 
 async fn download_and_extract(
-    client: &Client,
+    client: &RateLimitedClient,
     urls: &[String],
     attempted_urls: &mut HashSet<String>,
     output_dir: &Path
@@ -162,8 +160,6 @@ async fn download_and_extract(
                 queue.extend(new_urls);
             }
             Ok(ParseResult::File(dl_url)) => {
-                sleep(Duration::from_secs(3)).await;
-
                 let pb = ProgressBar::new(0);
                 pb.set_style(
                     ProgressStyle::default_bar()

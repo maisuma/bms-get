@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use reqwest::Client;
+
+use crate::client::RateLimitedClient;
 
 pub mod gdrive;
 
@@ -13,10 +14,10 @@ pub enum ParseResult {
 #[async_trait]
 pub trait UrlParser: Send + Sync {
     fn can_parse(&self, url: &str) -> bool;
-    async fn parse(&self, client: &Client, url: &str) -> Result<Vec<String>>;
+    async fn parse(&self, client: &RateLimitedClient, url: &str) -> Result<Vec<String>>;
 }
 
-pub async fn parse_url(client: &Client, url: &str) -> Result<ParseResult> {
+pub async fn parse_url(client: &RateLimitedClient, url: &str) -> Result<ParseResult> {
     let parsers: Vec<Box<dyn UrlParser>> = vec![
         Box::new(gdrive::GDriveParser),
         // 新規パーサーはここに追加

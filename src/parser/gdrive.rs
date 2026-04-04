@@ -1,9 +1,11 @@
+use crate::client::RateLimitedClient;
+
 use super::{UrlParser};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use log::debug;
 use regex::Regex;
-use reqwest::{header, Client, Url};
+use reqwest::{header, Url};
 use scraper::{Html, Selector};
 use std::sync::OnceLock;
 
@@ -15,7 +17,7 @@ impl UrlParser for GDriveParser {
         url.contains("drive.google.com")
     }
 
-    async fn parse(&self, client: &Client, url: &str) -> Result<Vec<String>> {
+    async fn parse(&self, client: &RateLimitedClient, url: &str) -> Result<Vec<String>> {
         let file_id = get_drive_id(url).context("Failed to get Google Drive file ID")?;
         let download_url = format!(
             "https://drive.usercontent.google.com/download?id={}&export=download&authuser=0",
@@ -25,7 +27,7 @@ impl UrlParser for GDriveParser {
         debug!("[GDRIVE] ID: {}", file_id);
         debug!("[GDRIVE] URL: {}", download_url);
 
-        let response = client.get(&download_url).send().await?.error_for_status()?;
+        let response = client.get(&download_url).await.send().await?.error_for_status()?;
 
         if let Some(content_type) = response.headers().get(header::CONTENT_TYPE) {
             if content_type.to_str().unwrap_or("").contains("text/html") {

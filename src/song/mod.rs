@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use reqwest::Client;
+
+use crate::client::RateLimitedClient;
 
 pub mod bms_search;
 pub mod lr2ir;
@@ -29,5 +30,5 @@ impl Default for BmsFileType {
 #[async_trait]
 pub trait BmsProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn find_urls(&self, client: &Client, md5: &str) -> Result<BmsUrl>;
+    async fn find_urls(&self, client: &RateLimitedClient, md5: &str) -> Result<BmsUrl>;
 }

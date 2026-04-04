@@ -2,8 +2,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use encoding_rs::SHIFT_JIS;
 use log::debug;
-use reqwest::Client;
 use scraper::{Html, Selector};
+
+use crate::client::RateLimitedClient;
 
 use super::{BmsFileType, BmsProvider, BmsUrl};
 
@@ -15,13 +16,13 @@ impl BmsProvider for Lr2IrProvider {
         "LR2IR"
     }
 
-    async fn find_urls(&self, client: &Client, md5: &str) -> Result<BmsUrl> {
+    async fn find_urls(&self, client: &RateLimitedClient, md5: &str) -> Result<BmsUrl> {
         let search_url = format!(
             "http://www.dream-pro.info/~lavalse/LR2IR/search.cgi?mode=ranking&bmsmd5={}",
             md5
         );
         debug!("[LR2IR] URL: {}", search_url);
-        let bytes = client.get(&search_url).send().await?.bytes().await?;
+        let bytes = client.get(&search_url).await.send().await?.bytes().await?;
         let (decoded, _, _) = SHIFT_JIS.decode(&bytes);
         let response = decoded.into_owned();
 

@@ -1,14 +1,14 @@
 use std::path::Path;
 
 use log::{error, info};
-use reqwest::Client;
 
 use crate::cli::{Cli, Commands};
+use crate::client::RateLimitedClient;
 use crate::download;
 use crate::event;
 use crate::table;
 
-pub async fn run(cli: Cli, client: Client) {
+pub async fn run(cli: Cli, client: RateLimitedClient) {
     match &cli.command {
         Commands::Md5 { md5 } => handle_md5(&client, md5, &cli.output_dir).await,
         Commands::Table { url } => handle_table(&client, url, &cli.output_dir).await,
@@ -16,12 +16,12 @@ pub async fn run(cli: Cli, client: Client) {
     }
 }
 
-async fn handle_md5(client: &Client, md5: &str, output_dir: &Path) {
+async fn handle_md5(client: &RateLimitedClient, md5: &str, output_dir: &Path) {
     info!("md5: {}", md5);
     let _ = download::download_md5(client, md5, output_dir).await;
 }
 
-async fn handle_table(client: &Client, url: &str, output_dir: &Path) {
+async fn handle_table(client: &RateLimitedClient, url: &str, output_dir: &Path) {
     let table = match table::parse_table(client, url).await {
         Ok(table) => table,
         Err(error) => {
@@ -37,7 +37,7 @@ async fn handle_table(client: &Client, url: &str, output_dir: &Path) {
     }
 }
 
-async fn handle_event(client: &Client, url: &str, output_dir: &Path) {
+async fn handle_event(client: &RateLimitedClient, url: &str, output_dir: &Path) {
     let scraper = match event::get_scraper(url) {
         Some(s) => s,
         None => {
