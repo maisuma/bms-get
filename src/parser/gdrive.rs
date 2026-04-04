@@ -1,11 +1,11 @@
 use crate::client::RateLimitedClient;
 
-use super::{UrlParser};
+use super::UrlParser;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use log::debug;
 use regex::Regex;
-use reqwest::{header, Url};
+use reqwest::{Url, header};
 use scraper::{Html, Selector};
 use std::sync::OnceLock;
 
@@ -27,7 +27,12 @@ impl UrlParser for GDriveParser {
         debug!("[GDRIVE] ID: {}", file_id);
         debug!("[GDRIVE] URL: {}", download_url);
 
-        let response = client.get(&download_url).await.send().await?.error_for_status()?;
+        let response = client
+            .get(&download_url)
+            .await
+            .send()
+            .await?
+            .error_for_status()?;
 
         if let Some(content_type) = response.headers().get(header::CONTENT_TYPE) {
             if content_type.to_str().unwrap_or("").contains("text/html") {

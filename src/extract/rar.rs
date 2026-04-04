@@ -1,14 +1,14 @@
 use super::Extractor;
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use anyhow::{Context, Result};
 use unrar::Archive;
 
 pub struct RarExtractor;
 
 impl Extractor for RarExtractor {
     fn can_handle(&self, ext: &str) -> bool {
-       ext == "rar"
+        ext == "rar"
     }
 
     fn extract(&self, archive_path: &Path, target_dir: &Path) -> Result<()> {
@@ -17,7 +17,7 @@ impl Extractor for RarExtractor {
         while let Some(header) = archive.read_header()? {
             archive = if header.entry().is_file() {
                 header.extract_with_base(target_dir)?
-            }else{
+            } else {
                 header.skip()?
             };
         }

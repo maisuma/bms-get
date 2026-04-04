@@ -1,13 +1,13 @@
 mod app;
 mod cli;
+mod client;
 mod download;
 mod downloader;
 mod event;
+mod extract;
 mod parser;
 mod song;
 mod table;
-mod extract;
-mod client;
 
 use std::num::NonZeroU32;
 

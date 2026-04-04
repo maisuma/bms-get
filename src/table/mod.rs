@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use reqwest::{Url};
+use reqwest::Url;
 use scraper::{Html, Selector};
 
 use crate::client::RateLimitedClient;
@@ -50,7 +50,7 @@ pub async fn parse_table(client: &RateLimitedClient, table_url: &str) -> Result<
     let symbol = header.symbol;
 
     let data_url = header_url.join(&header.data_url)?;
-    
+
     let response = client.get(data_url).await.send().await?;
     let bms_data: Vec<BmsData> = response.json().await?;
 

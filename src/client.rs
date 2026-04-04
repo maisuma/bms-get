@@ -1,7 +1,7 @@
 use governor::{
+    Quota, RateLimiter,
     clock::DefaultClock,
     state::{InMemoryState, NotKeyed},
-    Quota, RateLimiter,
 };
 use reqwest::{Client, IntoUrl, RequestBuilder};
 use std::sync::Arc;
@@ -31,5 +31,4 @@ impl RateLimitedClient {
         self.limiter.until_ready().await;
         self.client.post(url)
     }
-
 }

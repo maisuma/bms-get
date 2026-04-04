@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use futures_util::StreamExt;
 use log::debug;
 use regex::Regex;
-use reqwest::{header};
+use reqwest::header;
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 use std::sync::OnceLock;
@@ -19,12 +19,7 @@ pub async fn download(
 ) -> Result<PathBuf> {
     debug!("[Downloader] ダウンロード開始: {}", url);
 
-    let response = client
-        .get(url)
-        .await
-        .send()
-        .await?
-        .error_for_status()?;
+    let response = client.get(url).await.send().await?.error_for_status()?;
 
     let filename = if let Some(content) = response.headers().get(header::CONTENT_DISPOSITION) {
         let data = from_utf8(content.as_bytes())?;

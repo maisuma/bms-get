@@ -1,13 +1,13 @@
 use super::Extractor;
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use anyhow::{Context, Result};
 
 pub struct ZipExtractor;
 
 impl Extractor for ZipExtractor {
     fn can_handle(&self, ext: &str) -> bool {
-       ext == "zip"
+        ext == "zip"
     }
 
     fn extract(&self, archive_path: &Path, target_dir: &Path) -> Result<()> {
@@ -18,7 +18,7 @@ impl Extractor for ZipExtractor {
             let mut file = archive.by_index(i)?;
             let outpath = match file.enclosed_name() {
                 Some(path) => target_dir.join(path),
-                None => continue, 
+                None => continue,
             };
 
             if file.is_dir() {

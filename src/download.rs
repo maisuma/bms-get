@@ -5,18 +5,22 @@ use std::collections::{HashSet, VecDeque};
 use std::path::Path;
 
 use crate::client::RateLimitedClient;
-use crate::{downloader, extract};
 use crate::parser::{self, ParseResult};
 use crate::song::{
     BmsFileType, BmsProvider, BmsUrl, bms_search::BmsSearchProvider, lr2ir::Lr2IrProvider,
 };
 use crate::table::BmsData;
+use crate::{downloader, extract};
 
 pub async fn download_md5(client: &RateLimitedClient, md5: &str, output_dir: &Path) -> Result<()> {
     try_download(client, md5, output_dir, BmsUrl::default()).await
 }
 
-pub async fn download_event_entry(client: &RateLimitedClient, entry: &crate::event::EventEntry, output_dir: &Path) -> Result<()> {
+pub async fn download_event_entry(
+    client: &RateLimitedClient,
+    entry: &crate::event::EventEntry,
+    output_dir: &Path,
+) -> Result<()> {
     let mut attempted = HashSet::new();
     match download_and_extract(client, &entry.urls, &mut attempted, output_dir).await {
         Ok(true) => Ok(()),
@@ -25,7 +29,11 @@ pub async fn download_event_entry(client: &RateLimitedClient, entry: &crate::eve
     }
 }
 
-pub async fn download_table_entry(client: &RateLimitedClient, bms: &BmsData, output_dir: &Path) -> Result<()> {
+pub async fn download_table_entry(
+    client: &RateLimitedClient,
+    bms: &BmsData,
+    output_dir: &Path,
+) -> Result<()> {
     let seed = BmsUrl {
         main_urls: bms.main_url.clone().map_or(vec![], |u| vec![u]),
         diff_urls: bms.diff_url.clone().map_or(vec![], |u| vec![u]),
@@ -39,7 +47,12 @@ pub async fn download_table_entry(client: &RateLimitedClient, bms: &BmsData, out
     try_download(client, &bms.md5, output_dir, seed).await
 }
 
-async fn try_download(client: &RateLimitedClient, md5: &str, output_dir: &Path, seed: BmsUrl) -> Result<()> {
+async fn try_download(
+    client: &RateLimitedClient,
+    md5: &str,
+    output_dir: &Path,
+    seed: BmsUrl,
+) -> Result<()> {
     let mut main_done = false;
     let mut diff_done = false;
     let mut target_type = seed.target_type;
@@ -81,7 +94,14 @@ async fn try_download(client: &RateLimitedClient, md5: &str, output_dir: &Path, 
 
                 // 未取得のものをダウンロード
                 if !main_done && !found.main_urls.is_empty() {
-                    match download_and_extract(client, &found.main_urls, &mut attempted_urls, output_dir).await {
+                    match download_and_extract(
+                        client,
+                        &found.main_urls,
+                        &mut attempted_urls,
+                        output_dir,
+                    )
+                    .await
+                    {
                         Ok(true) => main_done = true,
                         Ok(false) => {}
                         Err(e) => last_error = Some(e),
@@ -89,7 +109,14 @@ async fn try_download(client: &RateLimitedClient, md5: &str, output_dir: &Path, 
                 }
 
                 if !diff_done && !found.diff_urls.is_empty() {
-                    match download_and_extract(client, &found.diff_urls, &mut attempted_urls, output_dir).await {
+                    match download_and_extract(
+                        client,
+                        &found.diff_urls,
+                        &mut attempted_urls,
+                        output_dir,
+                    )
+                    .await
+                    {
                         Ok(true) => diff_done = true,
                         Ok(false) => {}
                         Err(e) => last_error = Some(e),
@@ -109,7 +136,9 @@ async fn try_download(client: &RateLimitedClient, md5: &str, output_dir: &Path, 
     if !is_satisfied(main_done, diff_done, target_type) && !unknown_urls.is_empty() {
         info!("Trying unknown URLs... (md5: {})", md5);
 
-        if let Err(e) = download_and_extract(client, &unknown_urls, &mut attempted_urls, output_dir).await {
+        if let Err(e) =
+            download_and_extract(client, &unknown_urls, &mut attempted_urls, output_dir).await
+        {
             last_error = Some(e);
         }
     }
@@ -145,7 +174,7 @@ async fn download_and_extract(
     client: &RateLimitedClient,
     urls: &[String],
     attempted_urls: &mut HashSet<String>,
-    output_dir: &Path
+    output_dir: &Path,
 ) -> Result<bool> {
     let mut queue: VecDeque<String> = urls.iter().cloned().collect();
     let mut last_error = None;
