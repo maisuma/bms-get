@@ -59,7 +59,7 @@ impl BmsProvider for BmsSearchProvider {
         // TODO: 差分の場合は本体もついでに探す
         let (main_urls, diff_urls, unknown_urls, target_type) = match pattern.pack_type.as_deref() {
             Some("INCLUDED") => (urls, vec![], vec![], BmsFileType::Main),
-            Some("ADDITIONAL") => (vec![], urls, vec![], BmsFileType::Diff),
+            Some("ADDITIONAL") => (urls, vec![], vec![], BmsFileType::Diff),
             _ => (vec![], vec![], urls, BmsFileType::Unknown),
         };
 
