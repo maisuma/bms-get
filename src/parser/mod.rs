@@ -1,9 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::client::RateLimitedClient;
+use crate::{client::RateLimitedClient};
 
 pub mod gdrive;
+pub mod manbow;
 
 #[derive(Debug)]
 pub enum ParseResult {
@@ -19,6 +20,7 @@ pub trait UrlParser: Send + Sync {
 
 const PARSERS: &[&dyn UrlParser] = &[
     &gdrive::GDriveParser,
+    &manbow::ManbowParser,
     // 新規パーサーはここに追加
 ];
 
