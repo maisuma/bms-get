@@ -17,13 +17,13 @@ pub trait UrlParser: Send + Sync {
     async fn parse(&self, client: &RateLimitedClient, url: &str) -> Result<Vec<String>>;
 }
 
-pub async fn parse_url(client: &RateLimitedClient, url: &str) -> Result<ParseResult> {
-    let parsers: Vec<Box<dyn UrlParser>> = vec![
-        Box::new(gdrive::GDriveParser),
-        // 新規パーサーはここに追加
-    ];
+const PARSERS: &[&dyn UrlParser] = &[
+    &gdrive::GDriveParser,
+    // 新規パーサーはここに追加
+];
 
-    for parser in parsers {
+pub async fn parse_url(client: &RateLimitedClient, url: &str) -> Result<ParseResult> {
+    for parser in PARSERS {
         if parser.can_parse(url) {
             let res = parser.parse(client, url).await?;
             return Ok(ParseResult::Links(res));

@@ -9,6 +9,8 @@ pub trait Extractor: Send + Sync {
     fn extract(&self, archive_path: &Path, target_dir: &Path) -> Result<()>;
 }
 
+const EXTRACTORS: &[&dyn Extractor] = &[&zip::ZipExtractor, &rar::RarExtractor];
+
 pub fn extract(path: &Path) -> Result<()> {
     let extension = path
         .extension()
@@ -16,10 +18,7 @@ pub fn extract(path: &Path) -> Result<()> {
         .context("Invalid extension")?
         .to_lowercase();
 
-    let extractors: Vec<Box<dyn Extractor>> =
-        vec![Box::new(zip::ZipExtractor), Box::new(rar::RarExtractor)];
-
-    let extractor = extractors
+    let extractor = EXTRACTORS
         .iter()
         .find(|e| e.can_handle(&extension))
         .context("No extractor found")?;

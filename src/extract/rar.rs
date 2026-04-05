@@ -1,6 +1,5 @@
 use super::Extractor;
-use anyhow::{Context, Result};
-use std::fs;
+use anyhow::Result;
 use std::path::Path;
 use unrar::Archive;
 
