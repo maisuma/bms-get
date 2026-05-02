@@ -1,7 +1,7 @@
 use super::Extractor;
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub struct ZipExtractor;
 
@@ -10,9 +10,10 @@ impl Extractor for ZipExtractor {
         ext == "zip"
     }
 
-    fn extract(&self, archive_path: &Path, target_dir: &Path) -> Result<()> {
+    fn extract(&self, archive_path: &Path, target_dir: &Path) -> Result<Vec<PathBuf>> {
         let file = fs::File::open(archive_path).context("Failed to open archive")?;
         let mut archive = zip::ZipArchive::new(file).context("Failed to read zip archive")?;
+        let mut extracted_paths = Vec::new();
 
         for i in 0..archive.len() {
             let mut file = archive.by_index(i)?;
@@ -32,7 +33,8 @@ impl Extractor for ZipExtractor {
                 let mut outfile = fs::File::create(&outpath)?;
                 std::io::copy(&mut file, &mut outfile)?;
             }
+            extracted_paths.push(outpath);
         }
-        Ok(())
+        Ok(extracted_paths)
     }
 }

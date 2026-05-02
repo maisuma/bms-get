@@ -1,16 +1,17 @@
 use anyhow::{Result, anyhow};
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{error, info};
+use log::{debug, error, info};
 use std::collections::{HashSet, VecDeque};
 use std::path::Path;
 
 use crate::client::RateLimitedClient;
+use crate::extract::ExtractResult;
 use crate::parser::{self, ParseResult};
 use crate::song::{
     BmsFileType, BmsProvider, BmsUrl, bms_search::BmsSearchProvider, lr2ir::Lr2IrProvider,
 };
 use crate::table::BmsData;
-use crate::{downloader, extract};
+use crate::{downloader, extract, organize};
 
 pub async fn download_md5(client: &RateLimitedClient, md5: &str, output_dir: &Path) -> Result<()> {
     try_download(client, md5, output_dir, BmsUrl::default()).await
@@ -22,9 +23,13 @@ pub async fn download_event_entry(
     output_dir: &Path,
 ) -> Result<()> {
     let mut attempted = HashSet::new();
+    let mut bundle_root = None;
     match download_and_extract(client, &entry.urls, &mut attempted, output_dir).await {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(anyhow!("No downloadable URLs found")),
+        Ok(Some(extracted)) => {
+            organize::merge_extract(&mut bundle_root, &extracted)?;
+            Ok(())
+        }
+        Ok(None) => Err(anyhow!("No downloadable URLs found")),
         Err(e) => Err(e),
     }
 }
@@ -58,20 +63,27 @@ async fn try_download(
     let mut target_type = seed.target_type;
     let mut unknown_urls = seed.unknown_urls;
     let mut attempted_urls = HashSet::new();
+    let mut bundle_root = None;
     let mut last_error = None;
 
     // 初期URLの試行
     if !seed.main_urls.is_empty() {
         match download_and_extract(client, &seed.main_urls, &mut attempted_urls, output_dir).await {
-            Ok(true) => main_done = true,
-            Ok(false) => {}
+            Ok(Some(extracted)) => {
+                organize::merge_extract(&mut bundle_root, &extracted)?;
+                main_done = true;
+            }
+            Ok(None) => {}
             Err(e) => last_error = Some(e),
         }
     }
     if !seed.diff_urls.is_empty() {
         match download_and_extract(client, &seed.diff_urls, &mut attempted_urls, output_dir).await {
-            Ok(true) => diff_done = true,
-            Ok(false) => {}
+            Ok(Some(extracted)) => {
+                organize::merge_extract(&mut bundle_root, &extracted)?;
+                diff_done = true;
+            }
+            Ok(None) => {}
             Err(e) => last_error = Some(e),
         }
     }
@@ -102,8 +114,11 @@ async fn try_download(
                     )
                     .await
                     {
-                        Ok(true) => main_done = true,
-                        Ok(false) => {}
+                        Ok(Some(extracted)) => {
+                            organize::merge_extract(&mut bundle_root, &extracted)?;
+                            main_done = true;
+                        }
+                        Ok(None) => {}
                         Err(e) => last_error = Some(e),
                     }
                 }
@@ -117,8 +132,11 @@ async fn try_download(
                     )
                     .await
                     {
-                        Ok(true) => diff_done = true,
-                        Ok(false) => {}
+                        Ok(Some(extracted)) => {
+                            organize::merge_extract(&mut bundle_root, &extracted)?;
+                            diff_done = true;
+                        }
+                        Ok(None) => {}
                         Err(e) => last_error = Some(e),
                     }
                 }
@@ -136,10 +154,12 @@ async fn try_download(
     if !is_satisfied(main_done, diff_done, target_type) && !unknown_urls.is_empty() {
         info!("Trying unknown URLs... (md5: {})", md5);
 
-        if let Err(e) =
-            download_and_extract(client, &unknown_urls, &mut attempted_urls, output_dir).await
-        {
-            last_error = Some(e);
+        match download_and_extract(client, &unknown_urls, &mut attempted_urls, output_dir).await {
+            Ok(Some(extracted)) => {
+                organize::merge_extract(&mut bundle_root, &extracted)?;
+            }
+            Ok(None) => {}
+            Err(e) => last_error = Some(e),
         }
     }
 
@@ -175,7 +195,7 @@ async fn download_and_extract(
     urls: &[String],
     attempted_urls: &mut HashSet<String>,
     output_dir: &Path,
-) -> Result<bool> {
+) -> Result<Option<ExtractResult>> {
     let mut queue: VecDeque<String> = urls.iter().cloned().collect();
     let mut last_error = None;
 
@@ -216,8 +236,14 @@ async fn download_and_extract(
                 match result {
                     Ok(path) => {
                         pb_clone.finish_with_message(format!("Finished: {}", dl_url));
-                        extract::extract(&path)?;
-                        return Ok(true);
+                        let extracted = extract::extract(&path)?;
+                        debug!(
+                            "Extracted {} entries from {} to {}",
+                            extracted.extracted_paths.len(),
+                            extracted.archive_path.display(),
+                            extracted.target_dir.display()
+                        );
+                        return Ok(Some(extracted));
                     }
                     Err(e) => {
                         error!("Failed: {} - {}", dl_url, e);
@@ -235,6 +261,6 @@ async fn download_and_extract(
     if let Some(e) = last_error {
         Err(e.context("No valid URL found"))
     } else {
-        Ok(false)
+        Ok(None)
     }
 }

@@ -1,17 +1,29 @@
 use anyhow::{Context, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub mod rar;
 pub mod zip;
 
 pub trait Extractor: Send + Sync {
     fn can_handle(&self, ext: &str) -> bool;
-    fn extract(&self, archive_path: &Path, target_dir: &Path) -> Result<()>;
+    fn extract(&self, archive_path: &Path, target_dir: &Path) -> Result<Vec<PathBuf>>;
 }
 
 const EXTRACTORS: &[&dyn Extractor] = &[&zip::ZipExtractor, &rar::RarExtractor];
 
-pub fn extract(path: &Path) -> Result<()> {
+#[derive(Debug)]
+pub struct ExtractResult {
+    pub archive_path: PathBuf,
+    pub target_dir: PathBuf,
+    pub extracted_paths: Vec<PathBuf>,
+}
+
+pub fn extract(path: &Path) -> Result<ExtractResult> {
+    let target_dir = path.with_extension("");
+    extract_to(path, &target_dir)
+}
+
+fn extract_to(path: &Path, target_dir: &Path) -> Result<ExtractResult> {
     let extension = path
         .extension()
         .and_then(|e| e.to_str())
@@ -23,12 +35,15 @@ pub fn extract(path: &Path) -> Result<()> {
         .find(|e| e.can_handle(&extension))
         .context("No extractor found")?;
 
-    let target_dir = path.with_extension("");
     if !target_dir.exists() {
-        std::fs::create_dir_all(&target_dir)?;
+        std::fs::create_dir_all(target_dir)?;
     }
 
-    extractor.extract(path, target_dir.as_path())?;
+    let extracted_paths = extractor.extract(path, target_dir)?;
 
-    Ok(())
+    Ok(ExtractResult {
+        archive_path: path.to_path_buf(),
+        target_dir: target_dir.to_path_buf(),
+        extracted_paths,
+    })
 }
