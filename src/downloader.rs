@@ -10,6 +10,7 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 use crate::client::RateLimitedClient;
+use crate::extract;
 
 pub async fn download(
     client: &RateLimitedClient,
@@ -35,6 +36,7 @@ pub async fn download(
     debug!("[Downloader] ファイル名: {}", filename);
 
     let save_path = output_dir.join(filename);
+    extract::find_extractor(&save_path)?;
 
     let total_size = response.content_length().unwrap_or(0);
     let mut file = File::create(&save_path).await?;

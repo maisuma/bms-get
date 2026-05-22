@@ -236,7 +236,8 @@ async fn download_and_extract(
                 match result {
                     Ok(path) => {
                         pb_clone.finish_with_message(format!("Finished: {}", dl_url));
-                        let extracted = extract::extract(&path)?;
+                        let extractor = extract::find_extractor(&path)?;
+                        let extracted = extractor.extract_to(&path)?;
                         debug!(
                             "Extracted {} entries from {} to {}",
                             extracted.extracted_paths.len(),
