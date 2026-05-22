@@ -3,6 +3,8 @@ use async_trait::async_trait;
 
 use crate::client::RateLimitedClient;
 
+pub mod manbow;
+
 pub struct EventEntry {
     pub urls: Vec<String>,
 }
@@ -13,7 +15,7 @@ pub trait EventScraper: Send + Sync {
     async fn scrape(&self, client: &RateLimitedClient, url: &str) -> Result<Vec<EventEntry>>;
 }
 
-const SCRAPERS: &[&dyn EventScraper] = &[];
+const SCRAPERS: &[&dyn EventScraper] = &[&manbow::ManbowEventScraper];
 
 pub fn get_scraper(url: &str) -> Option<&dyn EventScraper> {
     SCRAPERS.into_iter().find(|s| s.can_handle(url)).copied()
