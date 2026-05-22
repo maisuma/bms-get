@@ -30,5 +30,8 @@ async fn main() {
         .unwrap();
     let client = RateLimitedClient::new(client, quota);
 
-    app::run(cli, client).await;
+    if let Err(e) = app::run(cli, client).await {
+        log::error!("{:#}", e);
+        std::process::exit(1);
+    }
 }
