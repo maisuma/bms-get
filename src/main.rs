@@ -7,7 +7,7 @@ mod event;
 mod extract;
 mod organize;
 mod parser;
-mod song;
+mod provider;
 mod table;
 
 use std::num::NonZeroU32;

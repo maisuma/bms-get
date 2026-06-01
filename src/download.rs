@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::client::RateLimitedClient;
 use crate::extract::ExtractResult;
 use crate::parser::{self, ParseResult};
-use crate::song::{
+use crate::provider::{
     BmsFileType, BmsProvider, BmsUrl, bms_search::BmsSearchProvider, lr2ir::Lr2IrProvider,
 };
 use crate::table::BmsData;
