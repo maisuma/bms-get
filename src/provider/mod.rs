@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use crate::client::RateLimitedClient;
 
 pub mod bms_search;
-pub mod lr2ir;
+pub mod lr2ir_archive;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BmsFileType {

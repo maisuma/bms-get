@@ -8,7 +8,8 @@ use crate::client::RateLimitedClient;
 use crate::extract::ExtractResult;
 use crate::parser::{self, ParseResult};
 use crate::provider::{
-    BmsFileType, BmsProvider, BmsUrl, bms_search::BmsSearchProvider, lr2ir::Lr2IrProvider,
+    BmsFileType, BmsProvider, BmsUrl, bms_search::BmsSearchProvider,
+    lr2ir_archive::Lr2IrArchiveProvider,
 };
 use crate::table::BmsData;
 use crate::{downloader, extract, organize};
@@ -93,7 +94,7 @@ async fn try_download(
 
     // プロバイダ一覧
     let providers: Vec<Box<dyn BmsProvider>> =
-        vec![Box::new(BmsSearchProvider), Box::new(Lr2IrProvider)];
+        vec![Box::new(BmsSearchProvider), Box::new(Lr2IrArchiveProvider)];
 
     for provider in providers {
         info!("Searching on {}.... (md5: {})", provider.name(), md5);
