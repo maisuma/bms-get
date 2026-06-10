@@ -3,15 +3,13 @@ use async_trait::async_trait;
 
 use crate::client::RateLimitedClient;
 
-use super::{BmsFileType, BmsProvider, BmsUrl};
+use super::{BmsProvider, BmsUrl};
 
 pub struct BmsSearchProvider;
 
 #[derive(serde::Deserialize)]
 struct BmsPattern {
     bms: BmsId,
-    #[serde(rename = "packType")]
-    pack_type: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -53,18 +51,9 @@ impl BmsProvider for BmsSearchProvider {
             .filter_map(|u| u.url.clone())
             .collect();
 
-        // TODO: 差分の場合は本体もついでに探す
-        let (main_urls, diff_urls, unknown_urls, target_type) = match pattern.pack_type.as_deref() {
-            Some("INCLUDED") => (urls, vec![], vec![], BmsFileType::Main),
-            Some("ADDITIONAL") => (urls, vec![], vec![], BmsFileType::Diff),
-            _ => (vec![], vec![], urls, BmsFileType::Unknown),
-        };
-
         Ok(BmsUrl {
-            main_urls,
-            diff_urls,
-            unknown_urls,
-            target_type,
+            main_urls: urls,
+            diff_urls: vec![],
         })
     }
 }

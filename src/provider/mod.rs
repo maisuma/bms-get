@@ -5,26 +5,12 @@ use crate::client::RateLimitedClient;
 
 pub mod bms_search;
 pub mod lr2ir_archive;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BmsFileType {
-    Main,
-    Diff,
-    Unknown,
-}
+pub mod seed;
 
 #[derive(Debug, Clone, Default)]
 pub struct BmsUrl {
     pub main_urls: Vec<String>,
     pub diff_urls: Vec<String>,
-    pub unknown_urls: Vec<String>,
-    pub target_type: BmsFileType,
-}
-
-impl Default for BmsFileType {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 #[async_trait]

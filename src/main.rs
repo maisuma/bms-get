@@ -1,11 +1,11 @@
 mod app;
+mod bms;
 mod cli;
 mod client;
 mod download;
 mod downloader;
 mod event;
 mod extract;
-mod organize;
 mod parser;
 mod provider;
 mod table;

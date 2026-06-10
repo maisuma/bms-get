@@ -5,7 +5,7 @@ use reqwest::StatusCode;
 
 use crate::client::RateLimitedClient;
 
-use super::{BmsFileType, BmsProvider, BmsUrl};
+use super::{BmsProvider, BmsUrl};
 
 pub struct Lr2IrArchiveProvider;
 
@@ -41,17 +41,9 @@ impl BmsProvider for Lr2IrArchiveProvider {
             .await
             .context("Parsing LR2IR Archive response failed")?;
 
-        let target_type = if chart.chart.diff_url.is_some() {
-            BmsFileType::Diff
-        } else {
-            BmsFileType::Unknown
-        };
-
         Ok(BmsUrl {
             main_urls: chart.chart.body_url.map_or(vec![], |url| vec![url]),
             diff_urls: chart.chart.diff_url.map_or(vec![], |url| vec![url]),
-            unknown_urls: vec![],
-            target_type,
         })
     }
 }

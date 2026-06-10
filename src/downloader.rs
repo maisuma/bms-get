@@ -39,6 +39,7 @@ pub async fn download(
     extract::find_extractor(&save_path)?;
 
     let total_size = response.content_length().unwrap_or(0);
+    tokio::fs::create_dir_all(output_dir).await?;
     let mut file = File::create(&save_path).await?;
     let mut stream = response.bytes_stream();
 

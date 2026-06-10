@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+use log::warn;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 pub mod chart;
@@ -13,10 +15,11 @@ pub trait Extractor: Send + Sync {
         let target_dir = path.with_extension("");
 
         if !target_dir.exists() {
-            std::fs::create_dir_all(&target_dir)?;
+            fs::create_dir_all(&target_dir)?;
         }
 
         let extracted_paths = self.extract(path, &target_dir)?;
+        cleanup_archive(path);
 
         Ok(ExtractResult {
             archive_path: path.to_path_buf(),
@@ -51,4 +54,12 @@ pub fn find_extractor(path: &Path) -> Result<&'static dyn Extractor> {
         .copied()
         .find(|e| e.can_handle(&extension))
         .context("No extractor found")
+}
+
+fn cleanup_archive(path: &Path) {
+    if path.is_file()
+        && let Err(e) = fs::remove_file(path)
+    {
+        warn!("Failed to remove archive: {} - {}", path.display(), e);
+    }
 }
