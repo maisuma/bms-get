@@ -3,6 +3,7 @@ use async_trait::async_trait;
 
 use crate::client::RateLimitedClient;
 
+pub mod dropbox;
 pub mod gdrive;
 pub mod manbow;
 
@@ -20,6 +21,7 @@ pub trait UrlParser: Send + Sync {
 
 const PARSERS: &[&dyn UrlParser] = &[
     &gdrive::GDriveParser,
+    &dropbox::DropboxParser,
     &manbow::ManbowParser,
     // 新規パーサーはここに追加
 ];
