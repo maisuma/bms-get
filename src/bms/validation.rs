@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::analyze::analyze_dir;
 
@@ -25,7 +25,7 @@ pub fn validate_ref(md5: &str, root: &Path) -> Result<bool> {
         let found = chart
             .refs
             .iter()
-            .filter(|file| ref_exists(&chart.root.join(file)))
+            .filter(|file| resolve_ref_path(&chart.root.join(file)).is_some())
             .count();
 
         return Ok(found * 100 >= chart.refs.len() * MIN_REF_MATCH_PERCENT);
@@ -34,17 +34,20 @@ pub fn validate_ref(md5: &str, root: &Path) -> Result<bool> {
     Ok(false)
 }
 
-fn ref_exists(path: &Path) -> bool {
+pub(crate) fn resolve_ref_path(path: &Path) -> Option<PathBuf> {
     if path.exists() {
-        return true;
+        return Some(path.to_path_buf());
     }
 
     if path
         .extension()
         .is_some_and(|extension| extension.eq_ignore_ascii_case("wav"))
     {
-        return path.with_extension("ogg").exists();
+        let ogg_path = path.with_extension("ogg");
+        if ogg_path.exists() {
+            return Some(ogg_path);
+        }
     }
 
-    false
+    None
 }

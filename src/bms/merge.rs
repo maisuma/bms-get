@@ -4,6 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::analyze::{BmsChart, BmsDir};
+use super::validation::resolve_ref_path;
 
 const MIN_MATCH_PERCENT: usize = 80;
 
@@ -65,7 +66,10 @@ fn score(target_dir: &Path, chart: &BmsChart) -> usize {
     chart
         .refs
         .iter()
-        .filter(|file| target_dir.join(file).exists() || chart.root.join(file).exists())
+        .filter(|file| {
+            resolve_ref_path(&target_dir.join(file)).is_some()
+                || resolve_ref_path(&chart.root.join(file)).is_some()
+        })
         .count()
 }
 
@@ -78,12 +82,15 @@ fn merge_chart(chart: &BmsChart, target: &Path) -> Result<()> {
     }
 
     for file in &chart.refs {
-        let source_path = chart.root.join(file);
-        if !source_path.exists() {
+        let Some(source_path) = resolve_ref_path(&chart.root.join(file)) else {
             continue;
-        }
+        };
 
-        let target_path = target.join(file);
+        // .wavの参照が.oggとして見つかった場合は、実体の拡張子を保ったまま移す。
+        let target_path = match source_path.extension() {
+            Some(extension) => target.join(file).with_extension(extension),
+            None => target.join(file),
+        };
         if let Some(parent) = target_path.parent() {
             fs::create_dir_all(parent)?;
         }
