@@ -38,15 +38,14 @@ async fn download_by_md5(
     seed: BmsUrl,
 ) -> Result<()> {
     let mut attempted_urls = HashSet::new();
-    let mut need = NeedBmsType::Diff;
     let providers: Vec<Box<dyn BmsProvider>> = vec![
         Box::new(SeedProvider::new(seed)),
         Box::new(BmsSearchProvider),
         Box::new(Lr2IrArchiveProvider),
     ];
 
-    for _ in 0..2 {
-        for provider in &providers {
+    for need in [NeedBmsType::Diff, NeedBmsType::Main] {
+        'providers: for provider in &providers {
             info!("Searching on {}.... (md5: {})", provider.name(), md5);
 
             let urls = match provider.find_urls(client, md5).await {
@@ -101,12 +100,9 @@ async fn download_by_md5(
                     return Ok(());
                 }
 
-                need = NeedBmsType::Main;
-                break;
+                break 'providers;
             }
         }
-
-        need = NeedBmsType::Main;
     }
 
     Err(anyhow!("Download incomplete: md5={}", md5))
