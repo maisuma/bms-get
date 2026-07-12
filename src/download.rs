@@ -12,7 +12,7 @@ use crate::provider::{
     seed::SeedProvider,
 };
 use crate::table::BmsData;
-use crate::{downloader, extract};
+use crate::{downloader, extract, store};
 
 pub async fn download_md5(client: &RateLimitedClient, md5: &str, output_dir: &Path) -> Result<()> {
     download_by_md5(client, md5, output_dir, BmsUrl::default()).await
@@ -38,6 +38,11 @@ async fn download_by_md5(
     seed: BmsUrl,
 ) -> Result<()> {
     std::fs::create_dir_all(output_dir)?;
+
+    let package = output_dir.join("packages").join(md5);
+    if package.exists() {
+        return Ok(());
+    }
 
     let temp = tempfile::tempdir_in(output_dir)?;
 
@@ -105,7 +110,7 @@ async fn download_by_md5(
                 }
 
                 if validation::validate_ref(md5, temp.path())? {
-                    std::fs::rename(temp.path(), output_dir.join(md5))?;
+                    store::save(temp.path(), output_dir, Path::new(md5))?;
                     return Ok(());
                 }
 
@@ -165,7 +170,7 @@ pub async fn download_event_entry(
             error!("Invalid extraction target: {}", result.target_dir.display());
             continue;
         };
-        std::fs::rename(&result.target_dir, output_dir.join(name))?;
+        store::save(&result.target_dir, output_dir, Path::new(name))?;
 
         return Ok(());
     }

@@ -8,6 +8,7 @@ mod event;
 mod extract;
 mod parser;
 mod provider;
+mod store;
 mod table;
 
 use std::num::NonZeroU32;
