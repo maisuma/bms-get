@@ -57,7 +57,7 @@ fn get_filename_from_url(url: &str) -> Option<String> {
     let segments: Vec<&str> = url.rsplit('/').collect();
     let filename = segments.first()?;
 
-    if filename.contains('.') && filename.len() < 100 {
+    if filename.contains('.') {
         Some(sanitize(filename))
     } else {
         None
