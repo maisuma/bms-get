@@ -162,10 +162,7 @@ pub async fn download_event_entry(
         };
 
         let Some(name) = result.target_dir.file_name() else {
-            error!(
-                "Invalid extraction target: {}",
-                result.target_dir.display()
-            );
+            error!("Invalid extraction target: {}", result.target_dir.display());
             continue;
         };
         std::fs::rename(&result.target_dir, output_dir.join(name))?;
