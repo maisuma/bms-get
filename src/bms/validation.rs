@@ -1,40 +1,30 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-use super::analyze::analyze_dir;
+use super::analyze::{chart_refs, find_chart};
 
 const MIN_REF_MATCH_PERCENT: usize = 90;
 
 pub fn validate_md5(md5: &str, root: &Path) -> Result<bool> {
-    let dir = analyze_dir(root)?;
-
-    Ok(dir
-        .charts
-        .iter()
-        .any(|chart| chart.md5.eq_ignore_ascii_case(md5)))
+    Ok(find_chart(root, md5)?.is_some())
 }
 
 pub fn validate_ref(md5: &str, root: &Path) -> Result<bool> {
-    let dir = analyze_dir(root)?;
+    let Some(chart) = find_chart(root, md5)? else {
+        return Ok(false);
+    };
 
-    for chart in &dir.charts {
-        if !chart.md5.eq_ignore_ascii_case(md5) {
-            continue;
-        }
+    let refs = chart_refs(&chart)?;
+    let root = chart.parent().unwrap_or(&chart);
+    let found = refs
+        .iter()
+        .filter(|file| resolve_ref_path(&root.join(file)).is_some())
+        .count();
 
-        let found = chart
-            .refs
-            .iter()
-            .filter(|file| resolve_ref_path(&chart.root.join(file)).is_some())
-            .count();
-
-        return Ok(found * 100 >= chart.refs.len() * MIN_REF_MATCH_PERCENT);
-    }
-
-    Ok(false)
+    Ok(found * 100 >= refs.len() * MIN_REF_MATCH_PERCENT)
 }
 
-pub(crate) fn resolve_ref_path(path: &Path) -> Option<PathBuf> {
+fn resolve_ref_path(path: &Path) -> Option<PathBuf> {
     if path.exists() {
         return Some(path.to_path_buf());
     }

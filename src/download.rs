@@ -4,7 +4,7 @@ use log::{debug, error, info};
 use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
-use crate::bms::{analyze::analyze_dir, merge, validation};
+use crate::bms::{merge, validation};
 use crate::client::RateLimitedClient;
 use crate::parser::{self, ParseResult};
 use crate::provider::{
@@ -37,6 +37,10 @@ async fn download_by_md5(
     output_dir: &Path,
     seed: BmsUrl,
 ) -> Result<()> {
+    std::fs::create_dir_all(output_dir)?;
+
+    let temp = tempfile::tempdir_in(output_dir)?;
+
     let mut attempted_urls = HashSet::new();
     let providers: Vec<Box<dyn BmsProvider>> = vec![
         Box::new(SeedProvider::new(seed)),
@@ -70,8 +74,9 @@ async fn download_by_md5(
                         continue;
                     }
                 };
+                let download_temp = tempfile::tempdir_in(output_dir)?;
 
-                let path = match download(client, &url, output_dir).await {
+                let path = match download(client, &url, download_temp.path()).await {
                     Ok(path) => path,
                     Err(e) => {
                         error!("Failed: {} - {}", url, e);
@@ -79,8 +84,13 @@ async fn download_by_md5(
                     }
                 };
 
-                let extractor = extract::find_extractor(&path)?;
-                let result = extractor.extract_to(&path)?;
+                let result = match extract::extract(&path) {
+                    Ok(result) => result,
+                    Err(e) => {
+                        error!("Failed to extract: {} - {}", url, e);
+                        continue;
+                    }
+                };
                 debug!(
                     "Extracted {} entries from {} to {}",
                     result.extracted_paths.len(),
@@ -88,19 +98,20 @@ async fn download_by_md5(
                     result.target_dir.display()
                 );
 
-                let dir = analyze_dir(output_dir)?;
-                let source = analyze_dir(&result.target_dir)?;
-                merge::merge_bms_dir(&dir, &source)?;
+                merge::merge_bms_dir(temp.path(), &result.target_dir)?;
 
-                if !validation::validate_md5(md5, output_dir)? {
+                if !validation::validate_md5(md5, temp.path())? {
                     continue;
                 }
 
-                if validation::validate_ref(md5, output_dir)? {
+                if validation::validate_ref(md5, temp.path())? {
+                    std::fs::rename(temp.path(), output_dir.join(md5))?;
                     return Ok(());
                 }
 
-                break 'providers;
+                if let NeedBmsType::Diff = need {
+                    break 'providers;
+                }
             }
         }
     }
@@ -119,37 +130,50 @@ pub async fn download_event_entry(
     entry: &crate::event::EventEntry,
     output_dir: &Path,
 ) -> Result<()> {
+    std::fs::create_dir_all(output_dir)?;
+
     let mut attempted_urls = HashSet::new();
     let mut walker = UrlWalker::new(&entry.urls, &mut attempted_urls);
-    let mut downloaded = false;
 
     while let Some(next) = walker.next(client).await {
-        match next {
-            Ok(url) => match download(client, &url, output_dir).await {
-                Ok(path) => {
-                    let extractor = extract::find_extractor(&path)?;
-                    let result = extractor.extract_to(&path)?;
-                    let dir = analyze_dir(output_dir)?;
-                    let source = analyze_dir(&result.target_dir)?;
-                    merge::merge_bms_dir(&dir, &source)?;
-
-                    downloaded = true;
-                }
-                Err(e) => {
-                    error!("Failed: {} - {}", url, e);
-                }
-            },
+        let url = match next {
+            Ok(url) => url,
             Err(e) => {
                 error!("Parsing failed: {}", e);
+                continue;
             }
-        }
+        };
+        let download_temp = tempfile::tempdir_in(output_dir)?;
+
+        let path = match download(client, &url, download_temp.path()).await {
+            Ok(path) => path,
+            Err(e) => {
+                error!("Failed: {} - {}", url, e);
+                continue;
+            }
+        };
+
+        let result = match extract::extract(&path) {
+            Ok(result) => result,
+            Err(e) => {
+                error!("Failed to extract: {} - {}", url, e);
+                continue;
+            }
+        };
+
+        let Some(name) = result.target_dir.file_name() else {
+            error!(
+                "Invalid extraction target: {}",
+                result.target_dir.display()
+            );
+            continue;
+        };
+        std::fs::rename(&result.target_dir, output_dir.join(name))?;
+
+        return Ok(());
     }
 
-    if downloaded {
-        Ok(())
-    } else {
-        Err(anyhow!("No downloadable URLs found"))
-    }
+    Err(anyhow!("No downloadable URLs found"))
 }
 
 async fn download(client: &RateLimitedClient, url: &str, output_dir: &Path) -> Result<PathBuf> {

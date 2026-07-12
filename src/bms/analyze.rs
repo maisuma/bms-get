@@ -3,55 +3,24 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
-pub struct BmsDir {
-    pub root: PathBuf,
-    pub files: HashSet<PathBuf>,
-    pub charts: Vec<BmsChart>,
-}
-
-#[derive(Debug)]
-pub struct BmsChart {
-    pub root: PathBuf,
-    pub path: PathBuf,
-    pub md5: String,
-    pub refs: HashSet<PathBuf>,
-}
-
-pub fn analyze_dir(path: &Path) -> Result<BmsDir> {
-    let mut dir = BmsDir {
-        root: path.to_path_buf(),
-        files: HashSet::new(),
-        charts: Vec::new(),
-    };
-    scan(path, &mut dir)?;
-    Ok(dir)
-}
-
-fn scan(path: &Path, dir: &mut BmsDir) -> Result<()> {
-    if path.is_file() {
-        dir.files.insert(path.to_path_buf());
-
-        if is_chart(path) {
-            let root = path.parent().unwrap_or(path).to_path_buf();
-            dir.charts.push(BmsChart {
-                root,
-                path: path.to_path_buf(),
-                md5: file_md5(path)?,
-                refs: chart_refs(path)?,
-            });
-        }
-
-        return Ok(());
+pub fn find_chart(root: &Path, md5: &str) -> Result<Option<PathBuf>> {
+    if root.is_file() {
+        return if is_chart(root) && file_md5(root)?.eq_ignore_ascii_case(md5) {
+            Ok(Some(root.to_path_buf()))
+        } else {
+            Ok(None)
+        };
     }
 
-    if path.is_dir() {
-        for entry in fs::read_dir(path)? {
-            scan(&entry?.path(), dir)?;
+    if root.is_dir() {
+        for entry in fs::read_dir(root)? {
+            if let Some(chart) = find_chart(&entry?.path(), md5)? {
+                return Ok(Some(chart));
+            }
         }
     }
 
-    Ok(())
+    Ok(None)
 }
 
 pub fn chart_refs(path: &Path) -> Result<HashSet<PathBuf>> {

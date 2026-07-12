@@ -56,6 +56,10 @@ pub fn find_extractor(path: &Path) -> Result<&'static dyn Extractor> {
         .context("No extractor found")
 }
 
+pub fn extract(path: &Path) -> Result<ExtractResult> {
+    find_extractor(path)?.extract_to(path)
+}
+
 fn cleanup_archive(path: &Path) {
     if path.is_file()
         && let Err(e) = fs::remove_file(path)
